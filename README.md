@@ -23,14 +23,15 @@ It was created as a **practice project** to strengthen my understanding of web d
 ---
 
 ## 📸 Screenshots
+### Login Page
+![Login Page](./assets/Loginpage.png)
+
 ### Homepage
 ![Homepage](./assets/HomePage.png)
 
 ### Chat Interface
 ![Chat Interface](./assets/Chat.png)
 
-### Login Page
-![Login Page](./assets/Loginpage.png)
 
 ## 🎯 What I Learned
 - Setting up a full-stack project using the MERN architecture  
