@@ -30,7 +30,7 @@ It was created as a **practice project** to strengthen my understanding of web d
 ![Chat Interface](./assets/Chat.png)
 
 ### Login Page
-![Login Page](./assets/Login.png)
+![Login Page](./assets/Loginpage.png)
 
 ## 🎯 What I Learned
 - Setting up a full-stack project using the MERN architecture  
