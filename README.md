@@ -22,6 +22,16 @@ It was created as a **practice project** to strengthen my understanding of web d
 
 ---
 
+## 📸 Screenshots
+### Homepage
+![Homepage](./assets/homepage.png)
+
+### Chat Interface
+![Chat Interface](./assets/chat.png)
+
+### Login Page
+![Login Page](./assets/login.png)
+
 ## 🎯 What I Learned
 - Setting up a full-stack project using the MERN architecture  
 - Using APIs to connect frontend and backend  
