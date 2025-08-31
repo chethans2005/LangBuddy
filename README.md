@@ -36,3 +36,13 @@ It was created as a **practice project** to strengthen my understanding of web d
    ```bash
    git clone https://github.com/chethans2005/LangBuddy.git
    cd LangBuddy
+2. Run the Backend
+   ```bash
+   cd backend
+   npm install
+   npm run dev
+3. Run the Frontend
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
