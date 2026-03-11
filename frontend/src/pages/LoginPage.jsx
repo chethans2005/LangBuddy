@@ -10,6 +10,7 @@ const LoginPage = () => {
   });
   
   const { isPending, error, loginMutation } = useLogin();
+  const errorMessage = error?.response?.data?.message || "Unable to sign in. Please try again.";
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -35,7 +36,7 @@ const LoginPage = () => {
           {/* ERROR MESSAGE DISPLAY */}
           {error && (
             <div className="alert alert-error mb-4">
-              <span>{error.response.data.message}</span>
+              <span>{errorMessage}</span>
             </div>
           )}
 

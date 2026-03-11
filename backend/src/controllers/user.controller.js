@@ -110,7 +110,7 @@ export async function acceptFriendRequest(req, res) {
 
     res.status(200).json({ message: "Friend request accepted" });
   } catch (error) {
-    console.log("Error in acceptFriendRequest controller", error.message);
+    console.error("Error in acceptFriendRequest controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -129,7 +129,7 @@ export async function getFriendRequests(req, res) {
 
     res.status(200).json({ incomingReqs, acceptedReqs });
   } catch (error) {
-    console.log("Error in getPendingFriendRequests controller", error.message);
+    console.error("Error in getPendingFriendRequests controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -143,7 +143,7 @@ export async function getOutgoingFriendReqs(req, res) {
 
     res.status(200).json(outgoingRequests);
   } catch (error) {
-    console.log("Error in getOutgoingFriendReqs controller", error.message);
+    console.error("Error in getOutgoingFriendReqs controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -176,7 +176,7 @@ export async function updateProfile(req, res) {
 
     res.status(200).json({ success: true, user: updatedUser });
   } catch (error) {
-    console.error("Profile update error:", error);
+    console.error("Profile update error:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

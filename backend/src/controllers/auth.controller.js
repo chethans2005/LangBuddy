@@ -43,7 +43,7 @@ export async function signup(req, res) {
       });
       console.log(`Stream user created for ${newUser.fullName}`);
     } catch (error) {
-      console.log("Error creating Stream user:", error);
+      console.error("Error creating Stream user:", error.message);
     }
 
     const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET_KEY, {
@@ -59,7 +59,7 @@ export async function signup(req, res) {
 
     res.status(201).json({ success: true, user: newUser });
   } catch (error) {
-    console.log("Error in signup controller", error);
+    console.error("Error in signup controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -91,13 +91,17 @@ export async function login(req, res) {
 
     res.status(200).json({ success: true, user });
   } catch (error) {
-    console.log("Error in login controller", error.message);
+    console.error("Error in login controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
 
 export function logout(req, res) {
-  res.clearCookie("jwt");
+  res.clearCookie("jwt", {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+  });
   res.status(200).json({ success: true, message: "Logout successful" });
 }
 
@@ -139,12 +143,12 @@ export async function onboard(req, res) {
       });
       console.log(`Stream user updated after onboarding for ${updatedUser.fullName}`);
     } catch (streamError) {
-      console.log("Error updating Stream user during onboarding:", streamError.message);
+      console.error("Error updating Stream user during onboarding:", streamError.message);
     }
 
     res.status(200).json({ success: true, user: updatedUser });
   } catch (error) {
-    console.error("Onboarding error:", error);
+    console.error("Onboarding error:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -164,6 +168,7 @@ export async function updateProfile(req, res) {
 
     res.status(200).json({ success: true, user: updatedUser });
   } catch (error) {
+    console.error("Profile update error in auth controller:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

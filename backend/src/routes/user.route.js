@@ -23,8 +23,8 @@ router.post("/friend-request/:id", sendFriendRequest);
 router.put("/friend-request/:id/accept", acceptFriendRequest);
 
 router.get("/friend-requests", getFriendRequests);
-router.get("/outgoing-friend-requests", protectRoute , getOutgoingFriendReqs);
+router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
 
-router.put("/profile",protectRoute, updateProfile); 
+router.put("/profile", updateProfile); 
 
 export default router;
