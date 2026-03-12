@@ -3,7 +3,7 @@ import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 
 export async function signup(req, res) {
-  const { email, password, fullName } = req.body;
+  const { email, password, fullName, nativeLanguage, learningLanguage, username } = req.body;
 
   try {
     if (!email || !password || !fullName) {
@@ -20,9 +20,29 @@ export async function signup(req, res) {
       return res.status(400).json({ message: "Invalid email format" });
     }
 
+    // basic temp / disposable email blocking
+    const domain = email.split("@")[1]?.toLowerCase();
+    const tempDomains = [
+      "mailinator.com",
+      "10minutemail.com",
+      "tempmail.com",
+      "guerrillamail.com",
+      "yopmail.com",
+    ];
+    if (domain && tempDomains.includes(domain)) {
+      return res.status(400).json({ message: "Temporary or disposable emails are not allowed" });
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists, please use a diffrent one" });
+    }
+
+    if (username) {
+      const existingUsername = await User.findOne({ username });
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username is already taken" });
+      }
     }
 
     const idx = Math.floor(Math.random() * 100) + 1; // generate a num between 1-100
@@ -33,6 +53,9 @@ export async function signup(req, res) {
       fullName,
       password,
       profilePic: randomAvatar,
+      nativeLanguage: nativeLanguage || "",
+      learningLanguage: learningLanguage || "",
+      username: username || undefined,
     });
 
     try {

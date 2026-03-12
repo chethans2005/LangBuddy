@@ -9,6 +9,9 @@ const SignUpPage = () => {
     fullName: "",
     email: "",
     password: "",
+    username: "",
+    nativeLanguage: "",
+    learningLanguage: "",
   });
 
 
@@ -83,6 +86,20 @@ const SignUpPage = () => {
                       required
                     />
                   </div>
+                  {/* USERNAME */}
+                  <div className="form-control w-full">
+                    <label className="label">
+                      <span className="label-text">Username (optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="john_doe"
+                      className="input input-bordered w-full"
+                      value={signupData.username}
+                      onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
+                    />
+                  </div>
+
                   {/* PASSWORD */}
                   <div className="form-control w-full">
                     <label className="label">
@@ -99,6 +116,40 @@ const SignUpPage = () => {
                     <p className="text-xs opacity-70 mt-1">
                       Password must be at least 6 characters long
                     </p>
+                  </div>
+
+                  {/* LANGUAGES */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="form-control w-full">
+                      <label className="label">
+                        <span className="label-text">Native language</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="English"
+                        className="input input-bordered w-full"
+                        value={signupData.nativeLanguage}
+                        onChange={(e) =>
+                          setSignupData({ ...signupData, nativeLanguage: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="form-control w-full">
+                      <label className="label">
+                        <span className="label-text">Learning language</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Spanish"
+                        className="input input-bordered w-full"
+                        value={signupData.learningLanguage}
+                        onChange={(e) =>
+                          setSignupData({ ...signupData, learningLanguage: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="form-control">

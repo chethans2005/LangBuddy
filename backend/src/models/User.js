@@ -47,6 +47,12 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
   },
   { timestamps: true }
 );
