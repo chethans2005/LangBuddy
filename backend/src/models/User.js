@@ -14,7 +14,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: false, // not set for OAuth-only users
       minlength: 6,
     },
     bio: {
@@ -58,7 +58,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password") || !this.password) return next();
 
   try {
     const salt = await bcrypt.genSalt(10);
@@ -70,8 +70,8 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  const isPasswordCorrect = await bcrypt.compare(enteredPassword, this.password);
-  return isPasswordCorrect;
+  if (!this.password) return false;
+  return bcrypt.compare(enteredPassword, this.password);
 };
 
 const User = mongoose.model("User", userSchema);

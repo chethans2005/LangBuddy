@@ -1,16 +1,49 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { Cat } from "lucide-react";
 import { Link } from "react-router";
 import useLogin from "../hooks/useLogin";
+import useGoogleLogin from "../hooks/useGoogleLogin";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const googleButtonRef = useRef(null);
   const [loginData, setLoginData] = useState({
     email: "",
     password: "",
   });
-  
+
   const { isPending, error, loginMutation } = useLogin();
-  const errorMessage = error?.response?.data?.message || "Unable to sign in. Please try again.";
+  const { isPending: isGooglePending, error: googleError, loginWithGoogleMutation } = useGoogleLogin();
+  const errorMessage =
+    error?.response?.data?.message ||
+    googleError?.response?.data?.message ||
+    "Unable to sign in. Please try again.";
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || !window.google?.accounts?.id || !googleButtonRef.current) return;
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        loginWithGoogleMutation(
+          { idToken: response.credential },
+          {
+            onSuccess: (data) =>
+          navigate(data?.user?.isOnboarded ? "/" : "/onboarding", { replace: true }),
+          }
+        );
+      },
+    });
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      width: 320,
+      text: "continue_with",
+    });
+  }, [loginWithGoogleMutation, navigate]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -34,7 +67,7 @@ const LoginPage = () => {
           </div>
 
           {/* ERROR MESSAGE DISPLAY */}
-          {error && (
+          {(error || googleError) && (
             <div className="alert alert-error mb-4">
               <span>{errorMessage}</span>
             </div>
@@ -89,6 +122,14 @@ const LoginPage = () => {
                       "Sign In"
                     )}
                   </button>
+
+                  <div className="divider text-sm">or</div>
+                  <div className="flex justify-center">
+                    <div ref={googleButtonRef} />
+                  </div>
+                  {isGooglePending && (
+                    <p className="text-center text-sm opacity-70">Signing in with Google...</p>
+                  )}
 
                   <div className="text-center mt-4">
                     <p className="text-sm">

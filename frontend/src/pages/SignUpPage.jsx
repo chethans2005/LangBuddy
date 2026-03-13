@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { Cat } from "lucide-react";
 import { Link } from "react-router";
 
 import useSignUp from "../hooks/useSignUp";
+import useGoogleLogin from "../hooks/useGoogleLogin";
 
 const SignUpPage = () => {
+  const navigate = useNavigate();
+  const googleButtonRef = useRef(null);
   const [signupData, setSignupData] = useState({
     fullName: "",
     email: "",
@@ -14,10 +18,37 @@ const SignUpPage = () => {
     learningLanguage: "",
   });
 
-
-  // This is how we did it using our custom hook - optimized version
   const { isPending, error, signupMutation } = useSignUp();
-  const errorMessage = error?.response?.data?.message || "Unable to create account. Please try again.";
+  const { isPending: isGooglePending, error: googleError, loginWithGoogleMutation } = useGoogleLogin();
+  const errorMessage =
+    error?.response?.data?.message ||
+    googleError?.response?.data?.message ||
+    "Unable to create account. Please try again.";
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || !window.google?.accounts?.id || !googleButtonRef.current) return;
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        loginWithGoogleMutation(
+          { idToken: response.credential },
+          {
+            onSuccess: (data) =>
+              navigate(data?.user?.isOnboarded ? "/" : "/onboarding", { replace: true }),
+          }
+        );
+      },
+    });
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      width: 320,
+      text: "signup_with",
+    });
+  }, [loginWithGoogleMutation, navigate]);
 
   const handleSignup = (e) => {
     e.preventDefault();
@@ -41,7 +72,7 @@ const SignUpPage = () => {
           </div>
 
           {/* ERROR MESSAGE IF ANY */}
-          {error && (
+          {(error || googleError) && (
             <div className="alert alert-error mb-4">
               <span>{errorMessage}</span>
             </div>
@@ -174,6 +205,14 @@ const SignUpPage = () => {
                     "Create Account"
                   )}
                 </button>
+
+                <div className="divider text-sm">or</div>
+                <div className="flex justify-center">
+                  <div ref={googleButtonRef} />
+                </div>
+                {isGooglePending && (
+                  <p className="text-center text-sm opacity-70">Signing up with Google...</p>
+                )}
 
                 <div className="text-center mt-4">
                   <p className="text-sm">
