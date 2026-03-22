@@ -82,6 +82,13 @@ export async function getMessageNotifications() {
 
 export async function createMessageNotification(notification) {
   const response = await axiosInstance.post("/notifications", notification);
+  // Notify UI that a new message notification exists so the navbar dot updates
+  try {
+    // send 1 to indicate there's at least one new notification
+    window.dispatchEvent(new CustomEvent("messageNotificationsUpdated", { detail: 1 }));
+  } catch (err) {
+    console.warn("Failed to dispatch messageNotificationsUpdated event", err);
+  }
   return response.data;
 }
 

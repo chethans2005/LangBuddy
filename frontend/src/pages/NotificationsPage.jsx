@@ -3,6 +3,7 @@ import { acceptFriendRequest, getFriendRequests, getMessageNotifications, delete
 import { BellIcon, CheckCheck, MessageSquareIcon, UserCheckIcon, Trash2 } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
@@ -56,13 +57,27 @@ const NotificationsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["messageNotifications"] });
       window.dispatchEvent(new CustomEvent("messageNotificationsUpdated", { detail: 0 }));
     } catch (err) {
+      console.warn("Failed to clear message notifications", err);
       /* ignore */
     }
   };
 
+  const navigate = useNavigate();
+
+  const handleMessageClick = (note) => {
+    // navigate to chat immediately, then remove the notification in background
+    if (note.senderId) navigate(`/chat/${note.senderId}`);
+    deleteMutation.mutate(note._id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["messageNotifications"] });
+        window.dispatchEvent(new CustomEvent("messageNotificationsUpdated", { detail: 0 }));
+      },
+    });
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="container mx-auto max-w-4xl space-y-8">
+      <div className="container mx-auto max-w-6xl space-y-8">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
 
         {isLoading ? (
@@ -71,6 +86,7 @@ const NotificationsPage = () => {
           </div>
         ) : (
           <>
+            {/* Incoming friend requests (full-width) */}
             {incomingRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -119,84 +135,103 @@ const NotificationsPage = () => {
               </section>
             )}
 
-            {/* ACCEPTED REQS NOTIFICATONS */}
-            {acceptedRequests.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <BellIcon className="h-5 w-5 text-success" />
-                  New Connections
-                </h2>
+            
+            {/* Two-column layout: messages (left) + new connections (right) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* New connections column */}
+              <div>
+                {acceptedRequests.length > 0 && (
+                  <section className="space-y-4">
+                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                      <BellIcon className="h-5 w-5 text-success" />
+                      New Connections
+                    </h2>
 
-                <div className="space-y-3">
-                  {acceptedRequests.map((notification) => (
-                    <div key={notification._id} className="card bg-base-200 shadow-sm">
-                      <div className="card-body p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="avatar mt-1 size-10 rounded-full">
-                            <img
-                              src={notification.recipient.profilePic}
-                              alt={notification.recipient.fullName}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold">{notification.recipient.fullName}</h3>
-                            <p className="text-sm my-1">
-                              {notification.recipient.fullName} accepted your friend request
-                            </p>
-                            <p className="text-xs flex items-center opacity-70">
-                              <CheckCheck  className="h-3 w-3 mr-1" />
-                              {notification.createdAt
-                                ? new Date(notification.createdAt).toLocaleDateString()
-                                : "Unknown"}
-                            </p>
-                          </div>
-                          <div className="badge badge-success">
-                            <MessageSquareIcon className="h-3 w-3 mr-1" />
-                            New Friend
+                    <div className="space-y-3">
+                      {acceptedRequests.map((notification) => (
+                        <div key={notification._id} className="card bg-base-200 shadow-sm">
+                          <div className="card-body p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="avatar mt-1 size-10 rounded-full">
+                                <img
+                                  src={notification.recipient.profilePic}
+                                  alt={notification.recipient.fullName}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-semibold">{notification.recipient.fullName}</h3>
+                                <p className="text-sm my-1">
+                                  {notification.recipient.fullName} accepted your friend request
+                                </p>
+                                <p className="text-xs flex items-center opacity-70">
+                                  <CheckCheck  className="h-3 w-3 mr-1" />
+                                  {notification.createdAt
+                                    ? new Date(notification.createdAt).toLocaleDateString()
+                                    : "Unknown"}
+                                </p>
+                              </div>
+                              <div className="badge badge-success">
+                                <MessageSquareIcon className="h-3 w-3 mr-1" />
+                                New Friend
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                  </section>
+                )}
+              </div>
 
-            {/* MESSAGE NOTIFICATIONS (from chat) */}
-            {(!isMsgsLoading && messageNotifications.length > 0) && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <BellIcon className="h-5 w-5 text-primary" />
-                  Messages
-                  <button className="btn btn-ghost btn-xs ml-auto" onClick={clearAllMessageNotifications}>
-                    Clear all
-                  </button>
-                </h2>
+              {/* Messages column */}
+              <div>
+                {(!isMsgsLoading && messageNotifications.length > 0) && (
+                  <section className="space-y-4">
+                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                      <BellIcon className="h-5 w-5 text-primary" />
+                      Messages
+                      <button className="btn btn-ghost btn-xs ml-auto" onClick={clearAllMessageNotifications}>
+                        Clear all
+                      </button>
+                    </h2>
 
-                <div className="space-y-3">
-                  {messageNotifications.map((note) => (
-                    <div key={note._id} className="card bg-base-200 shadow-sm">
-                      <div className="card-body p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold">{note.senderName}</h3>
-                            <p className="text-sm my-1">{note.text || "New message"}</p>
-                            <p className="text-xs opacity-70">
-                              {note.createdAt ? new Date(note.createdAt).toLocaleString() : "Unknown"}
-                            </p>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <button className="btn btn-outline btn-sm" onClick={() => deleteMessageNotificationLocal(note._id)}>
-                              <Trash2 className="h-4 w-4 mr-1 inline" /> Delete
-                            </button>
+                    <div className="space-y-3">
+                      {messageNotifications.map((note) => (
+                        <div
+                          key={note._id}
+                          className="card bg-base-200 shadow-sm cursor-pointer"
+                          onClick={() => handleMessageClick(note)}
+                        >
+                          <div className="card-body p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <h3 className="font-semibold">{note.senderName}</h3>
+                                <p className="text-sm my-1">{note.text || "New message"}</p>
+                                <p className="text-xs opacity-70">
+                                  {note.createdAt ? new Date(note.createdAt).toLocaleString() : "Unknown"}
+                                </p>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteMessageNotificationLocal(note._id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1 inline" /> Delete
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                  </section>
+                )}
+              </div>
+            </div>
 
             {incomingRequests.length === 0 && acceptedRequests.length === 0 && messageNotifications.length === 0 && (
               <NoNotificationsFound />

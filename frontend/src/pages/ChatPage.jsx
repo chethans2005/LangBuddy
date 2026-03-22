@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
@@ -28,24 +28,39 @@ const ChatPage = () => {
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const clientRef = useRef(null);
+  const channelRef = useRef(null);
   const { authUser } = useAuthUser();
 
   const { data: tokenData } = useQuery({
     queryKey: ["streamToken"],
     queryFn: getStreamToken,
-    enabled: !!authUser, // this will run only when authUser is available
+    enabled: !!authUser,
   });
 
+  // Initialize and connect user only once
   useEffect(() => {
-    let cleanupFn;
-    const initChat = async () => {
-      if (!tokenData?.token || !authUser) return;
+    const connectToStream = async () => {
+      if (!tokenData?.token || !authUser) {
+        console.warn("Skipping Stream connection - missing token or authUser", { hasToken: !!tokenData?.token, hasAuthUser: !!authUser });
+        return;
+      }
+
+      // If already connected, skip
+      if (clientRef.current?.user) {
+        console.log("Already connected to Stream");
+        setChatClient(clientRef.current);
+        return;
+      }
 
       try {
-        console.log("Initializing stream chat client...");
+        console.log("🔌 Connecting to Stream Chat...", {
+          userId: authUser._id,
+          userName: authUser.fullName,
+          token: tokenData.token.substring(0, 20) + "...",
+        });
 
         const client = StreamChat.getInstance(STREAM_API_KEY);
-
         await client.connectUser(
           {
             id: authUser._id,
@@ -55,124 +70,128 @@ const ChatPage = () => {
           tokenData.token
         );
 
-        //
+        console.log("✅ Connected to Stream successfully");
+        clientRef.current = client;
+        setChatClient(client);
+      } catch (error) {
+        console.error("❌ Error connecting to Stream:", error);
+        toast.error(`Stream connection failed: ${error.message}`);
+      }
+    };
+
+    connectToStream();
+  }, [tokenData, authUser]);
+
+  // Watch channel when client is ready and targetUserId changes
+  useEffect(() => {
+    const watchChannel = async () => {
+      if (!chatClient || !targetUserId) {
+        console.warn("Skipping channel watch - missing client or targetUserId", { hasClient: !!chatClient, targetUserId });
+        return;
+      }
+
+      try {
+        console.log("📺 Loading chat with user:", targetUserId);
+
         const channelId = [authUser._id, targetUserId].sort().join("-");
+        console.log("📝 Channel ID created:", channelId);
 
-        // you and me
-        // if i start the chat => channelId: [myId, yourId]
-        // if you start the chat => channelId: [yourId, myId]  => [myId,yourId]
-
-        const currChannel = client.channel("messaging", channelId, {
+        const currChannel = chatClient.channel("messaging", channelId, {
           members: [authUser._id, targetUserId],
         });
 
+        console.log("⏳ Watching channel...");
         await currChannel.watch();
 
-        // clear message notifications for this chat when user opens it
-        try {
-          const raw = localStorage.getItem("message_notifications");
-          const arr = raw ? JSON.parse(raw) : [];
-          const filtered = arr.filter((n) => n.channelCid !== currChannel?.cid);
-          localStorage.setItem("message_notifications", JSON.stringify(filtered));
-          window.dispatchEvent(new CustomEvent("messageNotificationsUpdated", { detail: filtered.length }));
-        } catch (err) {
-          /* ignore */
-        }
+        // Listen for new messages on THIS channel only (channel-level, not client-level)
+        const handleChannelMessage = async (event) => {
+          // Only create notification if message is from the other user
+          console.log("📬 Message event received:", {
+            senderId: event.user?.id,
+            senderName: event.user?.name,
+            authUserId: authUser._id,
+            text: event.message?.text,
+          });
 
-        // handle incoming messages globally — show toast and increment unread when appropriate
-        const handleNewMessage = (event) => {
-          const senderId = event.user?.id;
-          if (!senderId || senderId === authUser._id) return;
-
-          const eventChannelCid = event.channel?.cid;
-          // if message belongs to this currently-open chat and user is on this chat, don't create a notification
-          if (
-            eventChannelCid === currChannel?.cid &&
-            window.location.pathname?.startsWith(`/chat/${targetUserId}`)
-          ) {
+          if (event.user?.id === authUser._id) {
+            console.log("📨 Ignoring own message - sender matches logged-in user");
             return;
           }
 
-          // create persistent message notification in localStorage
+          console.log("🔔 New message received from", event.user?.name, "- creating notification");
+
           try {
-            const raw = localStorage.getItem("message_notifications");
-            const arr = raw ? JSON.parse(raw) : [];
-            const note = {
-              id: Date.now().toString() + "-" + Math.random().toString(36).slice(2, 8),
-              senderId,
+            const { createMessageNotification } = await import("../lib/api");
+            const result = await createMessageNotification({
+              senderId: event.user?.id,
               senderName: event.user?.name || "Unknown",
-              text: event.message?.text || "",
-              channelCid: eventChannelCid,
-              createdAt: new Date().toISOString(),
-            };
-            arr.unshift(note);
-            localStorage.setItem("message_notifications", JSON.stringify(arr));
-            window.dispatchEvent(new CustomEvent("messageNotificationsUpdated", { detail: arr.length }));
-
-            // try persist to server as well (best-effort)
-            import("../lib/api").then(({ createMessageNotification }) => {
-              try {
-                // create server notification for current user
-                createMessageNotification({
-                  senderId: note.senderId,
-                  senderName: note.senderName,
-                  text: note.text,
-                  channelCid: note.channelCid,
-                }).catch(() => {});
-              } catch (err) {
-                /* ignore */
-              }
+              text: event.message?.text || "Sent a message",
+              channelCid: currChannel.cid,
             });
-          } catch (err) {
-            /* ignore */
-          }
-
-          toast.success(`${event.user?.name || "New"}: ${event.message?.text || "New message"}`);
-        };
-
-
-        client.on("message.new", handleNewMessage);
-
-        // expose cleanup to effect scope
-        cleanupFn = async () => {
-          try {
-            client.off("message.new", handleNewMessage);
-          } catch (err) {
-            /* ignore */
-          }
-          try {
-            await currChannel?.stopWatching?.();
-          } catch (err) {
-            /* ignore */
-          }
-          try {
-            await client.disconnectUser();
-          } catch (err) {
-            /* ignore */
+            console.log("✅ Notification created:", result);
+          } catch (error) {
+            console.error("❌ Error creating notification:", error);
           }
         };
 
-        setChatClient(client);
+        console.log("🔗 Attaching message.new handler to channel");
+        currChannel.on("message.new", handleChannelMessage);
+        channelRef.current = { channel: currChannel, handler: handleChannelMessage, channelId };
+
+        console.log("✅ Channel watched successfully");
         setChannel(currChannel);
-
-        // cleanup on unmount: remove listener and disconnect client
-        // (returned below in effect cleanup)
+        setLoading(false);
       } catch (error) {
-        console.error("Error initializing chat:", error);
-        toast.error("Could not connect to chat. Please try again.");
-      } finally {
+        console.error("❌ Error watching channel:", error);
+        toast.error(`Channel connection failed: ${error.message}`);
         setLoading(false);
       }
     };
 
-    initChat();
+    watchChannel();
 
     return () => {
-      if (cleanupFn) cleanupFn();
+      if (channelRef.current) {
+        console.log("🧹 Removing message.new handler from channel:", channelRef.current.channelId);
+        const { channel: ch, handler } = channelRef.current;
+        ch.off("message.new", handler);
+        channelRef.current = null;
+      }
     };
-  }, [tokenData, authUser, targetUserId]);
+  }, [chatClient, targetUserId, authUser]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return async () => {
+      try {
+        if (clientRef.current?.user) {
+          await clientRef.current.disconnectUser();
+          clientRef.current = null;
+        }
+      } catch (error) {
+        console.error("Error disconnecting:", error);
+      }
+    };
+  }, []);
 
   if (loading || !chatClient || !channel) return <ChatLoader />;
+
+  // Expose test function for debugging
+  window.testNotification = async () => {
+    console.log("🧪 Testing notification creation...");
+    try {
+      const { createMessageNotification } = await import("../lib/api");
+      const result = await createMessageNotification({
+        senderId: "test-user-id",
+        senderName: "Test User",
+        text: "This is a test notification",
+        channelCid: "test-channel",
+      });
+      console.log("✅ Test notification created:", result);
+    } catch (error) {
+      console.error("❌ Test notification failed:", error);
+    }
+  };
 
   return (
     <div className="h-[93vh] flex items-center justify-center bg-base-100">

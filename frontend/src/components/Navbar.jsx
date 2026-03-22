@@ -13,6 +13,7 @@ const Navbar = () => {
 
   const { logoutMutation } = useLogout();
   const [hasMsgNotifications, setHasMsgNotifications] = useState(false);
+  const [ignoreServerNotes, setIgnoreServerNotes] = useState(false);
 
   useEffect(() => {
     const readInitial = (() => {
@@ -35,6 +36,8 @@ const Navbar = () => {
       } catch (err) {
         /* ignore */
       }
+      // if a new notification arrives, stop ignoring server notes
+      if (val > 0) setIgnoreServerNotes(false);
     };
 
     window.addEventListener("messageNotificationsUpdated", handler);
@@ -72,7 +75,9 @@ const Navbar = () => {
   });
 
   useEffect(() => {
-    if (typeof serverNotes === "number") setHasMsgNotifications((v) => v || serverNotes > 0);
+    if (typeof serverNotes === "number") {
+      if (!ignoreServerNotes) setHasMsgNotifications((v) => v || serverNotes > 0);
+    }
   }, [serverNotes]);
 
   return (
@@ -92,7 +97,17 @@ const Navbar = () => {
           )}
 
           <div className="flex items-center gap-3 sm:gap-4 ml-auto">
-            <Link to={"/notifications"}>
+            <Link
+              to={"/notifications"}
+              onClick={() => {
+                // Clear the red dot when user clicks the bell and temporarily ignore server count
+                setHasMsgNotifications(false);
+                setIgnoreServerNotes(true);
+                window.dispatchEvent(new CustomEvent("messageNotificationsUpdated", { detail: 0 }));
+                // clear ignore after a short delay so future server pushes re-enable dot
+                setTimeout(() => setIgnoreServerNotes(false), 3000);
+              }}
+            >
               <div className="relative inline-block overflow-visible">
                 <button className="btn btn-ghost btn-circle">
                   <BellIcon className="h-6 w-6 text-base-content opacity-70" />

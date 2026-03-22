@@ -1,4 +1,5 @@
 import Notification from "../models/Notification.js";
+import User from "../models/User.js";
 
 export async function getNotifications(req, res) {
   try {
@@ -7,6 +8,25 @@ export async function getNotifications(req, res) {
     res.status(200).json({ success: true, notifications: notes });
   } catch (error) {
     console.error("Error fetching notifications:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+// Debug helper: create a notification for the first user in DB (unprotected) - for local testing only
+export async function debugCreateForFirstUser(req, res) {
+  try {
+    const user = await User.findOne();
+    if (!user) return res.status(404).json({ message: "No users found" });
+    const note = await Notification.create({
+      user: user._id,
+      senderId: "debug",
+      senderName: "Debug",
+      text: "This is a debug notification",
+      channelCid: "debug-channel",
+    });
+    res.status(201).json({ success: true, notification: note });
+  } catch (err) {
+    console.error("Error in debugCreateForFirstUser:", err.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
