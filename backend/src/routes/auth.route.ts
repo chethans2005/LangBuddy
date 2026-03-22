@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import User from "../models/User";
 import { generateToken } from "../lib/jwt";
 import { protectRoute, AuthRequest } from "../middleware/auth.middleware";
+import { OAuth2Client } from "google-auth-library";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router = express.Router();
 
@@ -32,6 +35,51 @@ router.post("/signup", async (req, res) => {
     } else {
       res.status(400).json({ message: "Invalid user data" });
     }
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/google", async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    // Fallback if env variable is missing
+    const clientId = process.env.GOOGLE_CLIENT_ID || "invalid_client_id";
+    const client = new OAuth2Client(clientId);
+
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: clientId,
+    });
+    
+    const payload = ticket.getPayload();
+    if (!payload) {
+      res.status(400).json({ message: "Invalid Google Token" });
+      return;
+    }
+
+    const { email, name, picture } = payload;
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      user = new User({
+        name: name || "Google User",
+        email,
+        password: hashedPassword,
+        avatar: picture || "",
+        isOnboarded: false
+      });
+      await user.save();
+    }
+
+    generateToken(user._id.toString(), res);
+    res.status(200).json({ _id: user._id, name: user.name, email: user.email, avatar: user.avatar, isOnboarded: user.isOnboarded });
+
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -77,6 +125,23 @@ router.post("/onboard", protectRoute, async (req: AuthRequest, res) => {
       { new: true }
     ).select("-password");
     res.status(200).json(user);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put("/profile", protectRoute, async (req: AuthRequest, res) => {
+  try {
+    const { name, bio, avatar, nativeLanguage, learningLanguage } = req.body;
+    const userId = req.user?._id;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { name, bio, avatar, nativeLanguage, learningLanguage },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json(updatedUser);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

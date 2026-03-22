@@ -7,6 +7,20 @@ import nodemailer from "nodemailer";
 
 const router = express.Router();
 
+router.get("/search", protectRoute, async (req: AuthRequest, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || typeof q !== "string") return res.status(200).json([]);
+    const users = await User.find({
+      name: { $regex: q, $options: "i" },
+      _id: { $ne: req.user?._id },
+    }).select("name avatar nativeLanguage learningLanguage bio");
+    res.status(200).json(users);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get("/recommendations", protectRoute, async (req: AuthRequest, res) => {
   try {
     const currentUser = req.user;
