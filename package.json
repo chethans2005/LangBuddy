@@ -1,0 +1,11 @@
+{
+  "name": "langbuddy-monorepo",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix backend start",
+    "heroku-postbuild": "npm --prefix frontend install && npm --prefix frontend run build && cp -a frontend/dist backend/frontend/dist"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

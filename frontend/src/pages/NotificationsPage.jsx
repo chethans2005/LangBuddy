@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { acceptFriendRequest, getFriendRequests, getMessageNotifications, deleteMessageNotification } from "../lib/api";
 import { BellIcon, CheckCheck, MessageSquareIcon, UserCheckIcon, Trash2 } from "lucide-react";
