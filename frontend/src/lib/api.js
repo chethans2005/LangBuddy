@@ -74,3 +74,24 @@ export async function updateProfile(profileData) {
   return response.data;
 }
 
+// Notifications (server-backed)
+export async function getMessageNotifications() {
+  const response = await axiosInstance.get("/notifications");
+  return response.data;
+}
+
+export async function createMessageNotification(notification) {
+  const response = await axiosInstance.post("/notifications", notification);
+  return response.data;
+}
+
+export async function migrateMessageNotifications(notifications) {
+  const response = await axiosInstance.post("/notifications/migrate", { notifications });
+  return response.data;
+}
+
+export async function deleteMessageNotification(id) {
+  const response = await axiosInstance.delete(`/notifications/${id}`);
+  return response.data;
+}
+
