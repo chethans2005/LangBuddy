@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.19.0'
 
       # Removed Heroku CLI/install step — using Railway (auto-deploy) instead
 
@@ -26,7 +26,10 @@ jobs:
         run: npm --prefix frontend run build
 
       - name: Copy frontend build into backend
-        run: mkdir -p backend/frontend && cp -a frontend/dist backend/frontend/dist
+        run: node scripts/copyDist.js
+
+      - name: List backend files for sanity
+        run: ls -la backend
 
       - name: Install backend dependencies
         run: npm --prefix backend install
