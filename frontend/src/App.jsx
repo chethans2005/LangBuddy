@@ -11,6 +11,8 @@ import { Toaster } from "react-hot-toast";
 import FriendsPage from "./pages/FriendsPage.jsx";
 import PageLoader from "./components/PageLoader.jsx";
 import useAuthUser from "./hooks/useAuthUser.js";
+import { useEffect } from "react";
+import { migrateMessageNotifications } from "./lib/api";
 import Layout from "./components/Layout.jsx";
 import { useThemeStore } from "./store/useThemeStore.js";
 
@@ -20,6 +22,26 @@ const App = () => {
 
   const isAuthenticated = Boolean(authUser);
   const isOnboarded = authUser?.isOnboarded;
+
+  // migrate any local message notifications to server on login
+  useEffect(() => {
+    const migrate = async () => {
+      if (!authUser) return;
+      try {
+        const raw = localStorage.getItem("message_notifications");
+        const arr = raw ? JSON.parse(raw) : [];
+        if (arr.length === 0) return;
+        // send to server
+        await migrateMessageNotifications(arr.map((n) => ({ senderId: n.senderId, senderName: n.senderName, text: n.text, channelCid: n.channelCid, createdAt: n.createdAt })));
+        localStorage.removeItem("message_notifications");
+        window.dispatchEvent(new CustomEvent("messageNotificationsUpdated", { detail: 0 }));
+      } catch (err) {
+        /* ignore migration errors */
+      }
+    };
+
+    migrate();
+  }, [authUser]);
 
   if (isLoading) return <PageLoader />;
 

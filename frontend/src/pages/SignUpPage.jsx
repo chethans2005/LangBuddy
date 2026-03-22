@@ -14,8 +14,6 @@ const SignUpPage = () => {
     email: "",
     password: "",
     username: "",
-    nativeLanguage: "",
-    learningLanguage: "",
   });
 
   const { isPending, error, signupMutation } = useSignUp();
@@ -149,39 +147,7 @@ const SignUpPage = () => {
                     </p>
                   </div>
 
-                  {/* LANGUAGES */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="form-control w-full">
-                      <label className="label">
-                        <span className="label-text">Native language</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="English"
-                        className="input input-bordered w-full"
-                        value={signupData.nativeLanguage}
-                        onChange={(e) =>
-                          setSignupData({ ...signupData, nativeLanguage: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="form-control w-full">
-                      <label className="label">
-                        <span className="label-text">Learning language</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Spanish"
-                        className="input input-bordered w-full"
-                        value={signupData.learningLanguage}
-                        onChange={(e) =>
-                          setSignupData({ ...signupData, learningLanguage: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                  </div>
+                  {/* Languages are collected during onboarding, not signup */}
 
                   <div className="form-control">
                     <label className="label cursor-pointer justify-start gap-2">
