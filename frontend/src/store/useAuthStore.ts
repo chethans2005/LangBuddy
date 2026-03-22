@@ -11,6 +11,8 @@ interface AuthState {
   checkAuth: () => Promise<void>;
   signup: (data: any) => Promise<void>;
   login: (data: any) => Promise<void>;
+  googleAuth: (token: string) => Promise<void>;
+  updateProfile: (data: any) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -54,6 +56,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       toast.error(error.response?.data?.message || "An error occurred");
     } finally {
       set({ isLoggingIn: false });
+    }
+  },
+
+  googleAuth: async (token: string) => {
+    try {
+      const res = await axiosInstance.post("/auth/google", { token });
+      set({ authUser: res.data });
+      toast.success("Authenticated with Google");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Google auth failed");
+    }
+  },
+
+  updateProfile: async (data: any) => {
+    try {
+      const res = await axiosInstance.put("/auth/profile", data);
+      set({ authUser: res.data });
+      toast.success("Profile updated successfully");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to update profile");
     }
   },
 

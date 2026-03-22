@@ -10,9 +10,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
 const LANGUAGES = [
-  "English", "Spanish", "French", "German", "Italian", "Portuguese", 
-  "Russian", "Japanese", "Korean", "Chinese", "Arabic", "Hindi", 
-  "Turkish", "Dutch"
+  { name: "English",    code: "gb" },
+  { name: "Spanish",    code: "es" },
+  { name: "French",     code: "fr" },
+  { name: "German",     code: "de" },
+  { name: "Italian",    code: "it" },
+  { name: "Portuguese", code: "pt" },
+  { name: "Russian",    code: "ru" },
+  { name: "Japanese",   code: "jp" },
+  { name: "Korean",     code: "kr" },
+  { name: "Chinese",    code: "cn" },
+  { name: "Arabic",     code: "sa" },
+  { name: "Hindi",      code: "in" },
+  { name: "Turkish",    code: "tr" },
+  { name: "Dutch",      code: "nl" },
 ];
 
 export default function ChatPage() {
@@ -110,20 +121,20 @@ export default function ChatPage() {
           <div className="p-3">
             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 px-2">Language Groups</h3>
             <div className="space-y-1">
-              {LANGUAGES.map((lang) => {
-                const isActive = selectedChat === lang && isGroupChat;
+              {LANGUAGES.map(({ name, code }) => {
+                const isActive = selectedChat === name && isGroupChat;
                 return (
                   <button
-                    key={lang}
-                    onClick={() => setSelectedChat(lang, true)}
+                    key={name}
+                    onClick={() => setSelectedChat(name, true)}
                     className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all ${
                       isActive ? "bg-purple-600 border border-purple-500/50 shadow-md shadow-purple-500/20" : "hover:bg-[#27272a] border border-transparent"
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? "bg-white/20 text-white" : "bg-purple-500/10 text-purple-400"}`}>
-                      <FiGlobe className="w-4 h-4" />
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden text-lg ${isActive ? "bg-white/20" : "bg-purple-500/10"}`}>
+                      <span className={`fi fi-${code} rounded-md`} style={{ width: "1.4rem", height: "1.4rem", display: "block" }} />
                     </div>
-                    <span className={`font-medium ${isActive ? "text-white" : "text-zinc-300"}`}>{lang}</span>
+                    <span className={`font-medium ${isActive ? "text-white" : "text-zinc-300"}`}>{name}</span>
                   </button>
                 );
               })}

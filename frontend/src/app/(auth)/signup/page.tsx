@@ -6,6 +6,7 @@ import { FiMail, FiLock, FiUser } from "react-icons/fi";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { GoogleLogin } from "@react-oauth/google";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -99,6 +100,25 @@ export default function SignupPage() {
               "Sign Up"
             )}
           </button>
+          
+          <div className="flex items-center justify-center pt-2">
+            <span className="text-zinc-500 text-sm">or</span>
+          </div>
+
+          <div className="w-full flex justify-center">
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                if (credentialResponse.credential) {
+                  await useAuthStore.getState().googleAuth(credentialResponse.credential);
+                  router.push("/");
+                }
+              }}
+              onError={() => console.log('Signup Failed')}
+              theme="filled_black"
+              shape="pill"
+              text="signup_with"
+            />
+          </div>
         </form>
 
         <div className="mt-8 text-center text-sm text-zinc-400">

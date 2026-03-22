@@ -6,6 +6,7 @@ import { FiMail, FiLock } from "react-icons/fi";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { GoogleLogin } from "@react-oauth/google";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -82,6 +83,24 @@ export default function LoginPage() {
               "Sign In"
             )}
           </button>
+          
+          <div className="flex items-center justify-center pt-2">
+            <span className="text-zinc-500 text-sm">or</span>
+          </div>
+
+          <div className="w-full flex justify-center">
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                if (credentialResponse.credential) {
+                  await useAuthStore.getState().googleAuth(credentialResponse.credential);
+                  router.push("/");
+                }
+              }}
+              onError={() => console.log('Login Failed')}
+              theme="filled_black"
+              shape="pill"
+            />
+          </div>
         </form>
 
         <div className="mt-8 text-center text-sm text-zinc-400">
