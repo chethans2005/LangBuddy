@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Ensure single React copy to avoid internals being overwritten
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   plugins: [react()],
   build: {
     // split large vendor chunks to avoid single huge bundle

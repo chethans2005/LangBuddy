@@ -1,11 +1,12 @@
 import { StreamChat } from "stream-chat";
 import "dotenv/config";
 
-const apiKey = process.env.STEAM_API_KEY;
-const apiSecret = process.env.STEAM_API_SECRET;
+// Require correctly-named STREAM_* env vars (no legacy fallback)
+const apiKey = process.env.STREAM_API_KEY;
+const apiSecret = process.env.STREAM_API_SECRET;
 
 if (!apiKey || !apiSecret) {
-  console.error("Stream API key or Secret is missing");
+  throw new Error("Missing required env vars: STREAM_API_KEY and STREAM_API_SECRET");
 }
 
 const streamClient = StreamChat.getInstance(apiKey, apiSecret);
