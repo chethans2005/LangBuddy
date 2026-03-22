@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: '20'
 
+      # Removed Heroku CLI/install step — using Railway (auto-deploy) instead
+
       - name: Install frontend dependencies
         run: npm --prefix frontend install
 
@@ -29,10 +31,6 @@ jobs:
       - name: Install backend dependencies
         run: npm --prefix backend install
 
-      - name: Deploy to Heroku
-        uses: akhileshns/heroku-deploy@v3.12.12
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          usedocker: false
+      # Deployment handled by Railway auto-deploy from the connected GitHub repo.
+      # If you want Action-based Railway deploys, provide RAILWAY_API_TOKEN and
+      # we can add a CLI deploy step; for now this workflow only builds the app.
