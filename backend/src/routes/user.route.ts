@@ -7,12 +7,18 @@ import nodemailer from "nodemailer";
 
 const router = express.Router();
 
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 router.get("/search", protectRoute, async (req: AuthRequest, res) => {
   try {
     const { q } = req.query;
     if (!q || typeof q !== "string") return res.status(200).json([]);
+
+    const safeQuery = escapeRegex(q.trim().slice(0, 64));
+    if (!safeQuery) return res.status(200).json([]);
+
     const users = await User.find({
-      name: { $regex: q, $options: "i" },
+      name: { $regex: safeQuery, $options: "i" },
       _id: { $ne: req.user?._id },
     }).select("name avatar nativeLanguage learningLanguage bio");
     res.status(200).json(users);
@@ -24,13 +30,19 @@ router.get("/search", protectRoute, async (req: AuthRequest, res) => {
 router.get("/recommendations", protectRoute, async (req: AuthRequest, res) => {
   try {
     const currentUser = req.user;
+    const nativeLanguage = escapeRegex(String(currentUser.nativeLanguage || "").trim());
+    const learningLanguage = escapeRegex(String(currentUser.learningLanguage || "").trim());
+
+    if (!nativeLanguage || !learningLanguage) {
+      return res.status(200).json([]);
+    }
     
     const recommendations = await User.find({
       _id: { $ne: currentUser._id, $nin: currentUser.friends },
       isOnboarded: true,
       $or: [
-        { learningLanguage: { $regex: new RegExp(`^${currentUser.nativeLanguage}$`, "i") } },
-        { nativeLanguage: { $regex: new RegExp(`^${currentUser.learningLanguage}$`, "i") } }
+        { learningLanguage: { $regex: `^${nativeLanguage}$`, $options: "i" } },
+        { nativeLanguage: { $regex: `^${learningLanguage}$`, $options: "i" } }
       ]
     }).limit(10).select("-password -friends");
 

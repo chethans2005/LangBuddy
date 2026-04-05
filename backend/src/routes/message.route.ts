@@ -3,6 +3,7 @@ import express from "express";
 import Message from "../models/Message";
 import { protectRoute, AuthRequest } from "../middleware/auth.middleware";
 import { getReceiverSocketId, io } from "../lib/socket";
+import { isAllowedGroup } from "../lib/groups";
 
 const router = express.Router();
 
@@ -53,6 +54,9 @@ router.post("/direct/:id", protectRoute, async (req: AuthRequest, res) => {
 router.get("/group/:groupId", protectRoute, async (req: AuthRequest, res) => {
   try {
     const { groupId } = req.params;
+    if (!isAllowedGroup(groupId)) {
+      return res.status(400).json({ message: "Invalid group" });
+    }
 
     const messages = await Message.find({ groupId })
       .sort({ createdAt: 1 })
@@ -69,6 +73,10 @@ router.post("/group/:groupId", protectRoute, async (req: AuthRequest, res) => {
     const { text } = req.body;
     const { groupId } = req.params;
     const senderId = req.user._id;
+
+    if (!isAllowedGroup(groupId)) {
+      return res.status(400).json({ message: "Invalid group" });
+    }
 
     const newMessage = new Message({
       senderId,

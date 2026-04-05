@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
-
-const JWT_SECRET = process.env.JWT_SECRET || "my_super_secret_fallback_key";
+import { JWT_SECRET } from "../lib/env";
 
 export interface AuthRequest extends Request {
   user?: any;

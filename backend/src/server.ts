@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { connectDB } from "./lib/db";
 import { app, server } from "./lib/socket";
+import { FRONTEND_ORIGIN } from "./lib/env";
 
 import authRoutes from "./routes/auth.route";
 import userRoutes from "./routes/user.route";
@@ -15,7 +16,7 @@ dotenv.config();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin: FRONTEND_ORIGIN,
   credentials: true,
 }));
 
