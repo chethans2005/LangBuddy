@@ -16,8 +16,10 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login({ email, password });
-    router.push("/");
+    const ok = await login({ email, password });
+    if (ok) {
+      router.push("/");
+    }
   };
 
   return (
@@ -75,7 +77,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoggingIn}
-            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold rounded-xl py-3 shadow-lg shadow-purple-500/25 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold rounded-xl py-3 shadow-lg shadow-purple-500/25 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {isLoggingIn ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -92,8 +94,10 @@ export default function LoginPage() {
             <GoogleLogin
               onSuccess={async (credentialResponse) => {
                 if (credentialResponse.credential) {
-                  await useAuthStore.getState().googleAuth(credentialResponse.credential);
-                  router.push("/");
+                  const ok = await useAuthStore.getState().googleAuth(credentialResponse.credential);
+                  if (ok) {
+                    router.push("/");
+                  }
                 }
               }}
               onError={() => console.log('Login Failed')}

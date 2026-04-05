@@ -17,8 +17,10 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signup({ name, email, password });
-    router.push("/onboarding");
+    const ok = await signup({ name, email, password });
+    if (ok) {
+      router.push("/onboarding");
+    }
   };
 
   return (
@@ -92,7 +94,7 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={isSigningUp}
-            className="w-full mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-xl py-3 shadow-lg shadow-indigo-500/25 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full mt-2 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-xl py-3 shadow-lg shadow-indigo-500/25 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {isSigningUp ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -109,8 +111,10 @@ export default function SignupPage() {
             <GoogleLogin
               onSuccess={async (credentialResponse) => {
                 if (credentialResponse.credential) {
-                  await useAuthStore.getState().googleAuth(credentialResponse.credential);
-                  router.push("/");
+                  const ok = await useAuthStore.getState().googleAuth(credentialResponse.credential);
+                  if (ok) {
+                    router.push("/");
+                  }
                 }
               }}
               onError={() => console.log('Signup Failed')}

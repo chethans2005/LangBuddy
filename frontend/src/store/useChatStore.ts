@@ -40,9 +40,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ isConnecting: true });
 
     const socket = io(SOCKET_URL, {
-      query: {
-        userId: authUser._id,
-      },
+      withCredentials: true,
     });
 
     socket.connect();

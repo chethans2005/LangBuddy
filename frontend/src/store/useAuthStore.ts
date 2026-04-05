@@ -9,11 +9,11 @@ interface AuthState {
   isSigningUp: boolean;
 
   checkAuth: () => Promise<void>;
-  signup: (data: any) => Promise<void>;
-  login: (data: any) => Promise<void>;
-  googleAuth: (token: string) => Promise<void>;
-  updateProfile: (data: any) => Promise<void>;
-  logout: () => Promise<void>;
+  signup: (data: any) => Promise<boolean>;
+  login: (data: any) => Promise<boolean>;
+  googleAuth: (token: string) => Promise<boolean>;
+  updateProfile: (data: any) => Promise<boolean>;
+  logout: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -39,8 +39,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       const res = await axiosInstance.post("/auth/signup", data);
       set({ authUser: res.data });
       toast.success("Account created successfully");
+      return true;
     } catch (error: any) {
       toast.error(error.response?.data?.message || "An error occurred");
+      return false;
     } finally {
       set({ isSigningUp: false });
     }
@@ -52,8 +54,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       const res = await axiosInstance.post("/auth/login", data);
       set({ authUser: res.data });
       toast.success("Logged in successfully");
+      return true;
     } catch (error: any) {
       toast.error(error.response?.data?.message || "An error occurred");
+      return false;
     } finally {
       set({ isLoggingIn: false });
     }
@@ -64,8 +68,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       const res = await axiosInstance.post("/auth/google", { token });
       set({ authUser: res.data });
       toast.success("Authenticated with Google");
+      return true;
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Google auth failed");
+      return false;
     }
   },
 
@@ -74,8 +80,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       const res = await axiosInstance.put("/auth/profile", data);
       set({ authUser: res.data });
       toast.success("Profile updated successfully");
+      return true;
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to update profile");
+      return false;
     }
   },
 
@@ -84,8 +92,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       await axiosInstance.post("/auth/logout");
       set({ authUser: null });
       toast.success("Logged out successfully");
+      return true;
     } catch (error: any) {
       toast.error(error.response?.data?.message || "An error occurred");
+      return false;
     }
   },
 }));

@@ -64,7 +64,7 @@ export default function OnboardingPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-[#18181b] rounded-3xl p-8 border border-white/5 shadow-2xl relative overflow-hidden"
       >
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-purple-500 to-indigo-500" />
         
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Setup Profile</h1>
@@ -92,7 +92,7 @@ export default function OnboardingPage() {
           </div>
 
           <div className="w-full">
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5 flex items-center gap-2">
+            <label className="text-sm font-medium text-zinc-300 mb-1.5 flex items-center gap-2">
               <FiGlobe className="text-zinc-500" /> Native Language
             </label>
             <select
@@ -118,7 +118,7 @@ export default function OnboardingPage() {
           </div>
 
           <div className="w-full">
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5 flex items-center gap-2">
+            <label className="text-sm font-medium text-zinc-300 mb-1.5 flex items-center gap-2">
               <FiGlobe className="text-zinc-500" /> Learning Language
             </label>
             <select
@@ -144,7 +144,7 @@ export default function OnboardingPage() {
           </div>
 
           <div className="w-full">
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5 flex items-center gap-2">
+            <label className="text-sm font-medium text-zinc-300 mb-1.5 flex items-center gap-2">
               <FiInfo className="text-zinc-500" /> Bio <span className="text-zinc-500 text-xs">(Optional)</span>
             </label>
             <textarea
@@ -159,7 +159,7 @@ export default function OnboardingPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold tracking-wide shadow-lg shadow-purple-500/25 transition-all active:scale-[0.98] mt-4 disabled:opacity-50"
+            className="w-full py-3.5 bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold tracking-wide shadow-lg shadow-purple-500/25 transition-all active:scale-[0.98] mt-4 disabled:opacity-50"
           >
             {isSubmitting ? "Saving..." : "Complete Setup"}
           </button>
