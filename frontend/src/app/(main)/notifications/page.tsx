@@ -14,6 +14,12 @@ export default function NotificationsPage() {
     fetchNotifications();
   }, []);
 
+  useEffect(() => {
+    const handler = () => fetchNotifications();
+    window.addEventListener("notification:received", handler as EventListener);
+    return () => window.removeEventListener("notification:received", handler as EventListener);
+  }, []);
+
   const fetchNotifications = async () => {
     try {
       const res = await axiosInstance.get("/notifications");

@@ -3,6 +3,7 @@ import express from "express";
 import Notification from "../models/Notification";
 import User from "../models/User";
 import { protectRoute, AuthRequest } from "../middleware/auth.middleware";
+import { getReceiverSocketId, io } from "../lib/socket";
 
 const router = express.Router();
 
@@ -31,6 +32,19 @@ router.put("/:id", protectRoute, async (req: AuthRequest, res) => {
     if (action === "ACCEPT" && notification.type === "FRIEND_REQUEST") {
       await User.findByIdAndUpdate(req.user._id, { $addToSet: { friends: notification.sender } });
       await User.findByIdAndUpdate(notification.sender, { $addToSet: { friends: req.user._id } });
+    }
+
+    // notify sender if they are online that their friend request was handled
+    try {
+      const senderId = notification.sender?.toString();
+      if (senderId) {
+        const senderSocketId = getReceiverSocketId(senderId);
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("friendRequestHandled", { recipient: req.user._id, action });
+        }
+      }
+    } catch (e) {
+      // ignore emit errors
     }
 
     await Notification.findByIdAndDelete(notificationId);

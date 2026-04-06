@@ -3,6 +3,7 @@ import express from "express";
 import User from "../models/User";
 import Notification from "../models/Notification";
 import { protectRoute, AuthRequest } from "../middleware/auth.middleware";
+import { getReceiverSocketId, io } from "../lib/socket";
 import nodemailer from "nodemailer";
 
 const router = express.Router();
@@ -86,6 +87,16 @@ router.post("/add-friend/:id", protectRoute, async (req: AuthRequest, res) => {
     });
 
     await notification.save();
+    // emit real-time notification to recipient if they're online
+    try {
+      const receiverSocketId = getReceiverSocketId(recipientId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("newNotification", notification);
+      }
+    } catch (e) {
+      // non-fatal, continue
+    }
+
     res.status(200).json({ message: "Friend request sent" });
   } catch (error: any) {
     res.status(500).json({ message: error.message });

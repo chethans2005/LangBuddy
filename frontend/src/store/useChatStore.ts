@@ -53,6 +53,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
     socket.on("connect", () => {
       set({ isConnecting: false });
     });
+
+    // listen for incoming notifications (friend requests, messages, etc.)
+    socket.on("newNotification", (notification: any) => {
+      try {
+        // small UX: show a toast and dispatch a DOM event so interested components can refresh
+        // avoid importing UI code here; use browser events and toast
+        // @ts-ignore
+        window.dispatchEvent(new CustomEvent("notification:received", { detail: notification }));
+      } catch (e) {
+        // ignore
+      }
+    });
+    socket.on("friendRequestHandled", (payload: any) => {
+      try {
+        const { action, recipient } = payload || {};
+        // notify the user who sent the request that it's been handled
+        // @ts-ignore
+        window.dispatchEvent(new CustomEvent("notification:received", { detail: { type: "FRIEND_HANDLED", action, recipient } }));
+      } catch (e) {
+        // ignore
+      }
+    });
   },
 
   disconnectSocket: () => {
@@ -118,16 +140,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { socket } = get();
     if (!socket) return;
 
-    socket.on("newMessage", (newMessage: any) => {
+     socket.on("newMessage", (newMessage: any) => {
       const { selectedChat, isGroupChat } = get();
-      
+
       if (isGroupChat && newMessage.groupId === selectedChat) {
-         set({ messages: [...get().messages, newMessage] });
-      } 
-      else if (!isGroupChat && newMessage.senderId._id === selectedChat) {
-         set({ messages: [...get().messages, newMessage] });
+        set({ messages: [...get().messages, newMessage] });
+        return;
       }
-    });
+
+      // handle direct messages: senderId may be populated object or id string
+      const senderId = newMessage?.senderId?._id || newMessage?.senderId;
+      if (!isGroupChat && senderId === selectedChat) {
+        set({ messages: [...get().messages, newMessage] });
+      }
+     });
   },
 
   unsubscribeFromMessages: () => {
