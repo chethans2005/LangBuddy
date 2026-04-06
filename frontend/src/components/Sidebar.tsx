@@ -90,7 +90,7 @@ export default function Sidebar() {
 
   const sendFriendRequest = async (targetId: string) => {
     try {
-      await axiosInstance.post("/users/add-friend", { targetId });
+      await axiosInstance.post(`/users/add-friend/${targetId}`);
       toast.success("Friend request sent!");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to send request");
@@ -311,8 +311,11 @@ export default function Sidebar() {
                 <button onClick={() => sendFriendRequest(selectedUser._id)} className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]">
                   <FiUserPlus /> Add Friend
                 </button>
-                <button onClick={() => { setSelectedUser(null); router.push(`/chat?user=${selectedUser._id}`); }} className="flex-1 bg-[#27272a] hover:bg-[#3f3f46] border border-white/5 text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                <button onClick={() => { setSelectedUser(null); router.push(`/chat?userId=${selectedUser._id}`); }} className="flex-1 bg-[#27272a] hover:bg-[#3f3f46] border border-white/5 text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
                   <FiMessageCircle /> Message
+                </button>
+                <button onClick={() => { setSelectedUser(null); router.push(`/profile/${selectedUser._id}`); }} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                  <FiEdit3 /> Profile
                 </button>
               </div>
             </motion.div>

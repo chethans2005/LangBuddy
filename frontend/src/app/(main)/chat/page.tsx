@@ -67,7 +67,7 @@ export default function ChatPage() {
         const res = await axiosInstance.get("/users/friends");
         setFriends(res.data);
         // Auto-select user from URL param if provided
-        const userId = searchParams.get("userId");
+        const userId = searchParams.get("userId") || searchParams.get("user");
         if (userId && !selectedChat) {
           setSelectedChat(userId, false);
         }

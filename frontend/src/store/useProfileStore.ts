@@ -25,7 +25,7 @@ interface ProfileState {
   isLoading: boolean;
   fetchUserProfile: (userId: string) => Promise<void>;
   fetchUserRatings: (userId: string) => Promise<void>;
-  updateProficiencyLevel: (userId: string, levels: any) => Promise<void>;
+  updateProficiencyLevel: (userId: string, profileData: any) => Promise<void>;
   addRating: (userId: string, score: number, comment: string) => Promise<void>;
   clearProfile: () => void;
 }
@@ -56,11 +56,9 @@ export const useProfileStore = create<ProfileState>((set) => ({
     }
   },
 
-  updateProficiencyLevel: async (userId: string, levels: any) => {
+  updateProficiencyLevel: async (userId: string, profileData: any) => {
     try {
-      const res = await axiosInstance.put(`/users/${userId}/profile`, {
-        proficiencyLevels: levels,
-      });
+      const res = await axiosInstance.put(`/users/${userId}/profile`, profileData);
       set({ user: res.data });
       toast.success("Proficiency level updated");
     } catch (e) {
