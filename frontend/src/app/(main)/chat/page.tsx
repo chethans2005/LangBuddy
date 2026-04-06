@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { axiosInstance } from "@/lib/axios";
@@ -27,6 +28,7 @@ const LANGUAGES = [
 ];
 
 export default function ChatPage() {
+  const searchParams = useSearchParams();
   const { authUser } = useAuthStore();
   const { 
     messages, selectedChat, isGroupChat, isLoadingMessages, 
@@ -53,10 +55,15 @@ export default function ChatPage() {
       try {
         const res = await axiosInstance.get("/users/friends");
         setFriends(res.data);
+        // Auto-select user from URL param if provided
+        const userId = searchParams.get("userId");
+        if (userId && !selectedChat) {
+          setSelectedChat(userId, false);
+        }
       } catch (err) {}
     };
     fetchFriends();
-  }, []);
+  }, [searchParams, selectedChat, setSelectedChat]);
 
   useEffect(() => {
     if (selectedChat) {

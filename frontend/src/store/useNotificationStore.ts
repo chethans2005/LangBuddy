@@ -6,7 +6,9 @@ interface NotificationState {
   unreadCount: number;
   fetchCount: () => Promise<void>;
   increment: () => void;
+  decrement: () => void;
   reset: () => void;
+  markAsRead: (id: string) => Promise<void>;
   subscribeToEvents: () => (() => void) | void;
 }
 
@@ -21,7 +23,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }
   },
   increment: () => set((s) => ({ unreadCount: s.unreadCount + 1 })),
+  decrement: () => set((s) => ({ unreadCount: Math.max(0, s.unreadCount - 1) })),
   reset: () => set({ unreadCount: 0 }),
+  markAsRead: async (id: string) => {
+    try {
+      await axiosInstance.put(`/notifications/${id}/read`);
+      get().decrement();
+    } catch (e) {
+      // silent fail
+    }
+  },
   subscribeToEvents: () => {
     if (typeof window === "undefined") return;
     const handler = (event: Event) => {
