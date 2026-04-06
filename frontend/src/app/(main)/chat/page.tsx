@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { axiosInstance } from "@/lib/axios";
-import { FiSend, FiGlobe, FiMessageSquare, FiUserPlus, FiX } from "react-icons/fi";
+import { FiSend, FiGlobe, FiMessageSquare, FiUserPlus, FiX, FiMoreVertical, FiEdit3, FiTrash2, FiSmile, FiSearch } from "react-icons/fi";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -31,9 +31,10 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const { authUser } = useAuthStore();
   const { 
-    messages, selectedChat, isGroupChat, isLoadingMessages, 
+    messages, selectedChat, isGroupChat, isLoadingMessages, typingUsers,
     setSelectedChat, sendMessage, subscribeToMessages, unsubscribeFromMessages,
-    connectSocket, disconnectSocket, onlineUsers 
+    connectSocket, disconnectSocket, onlineUsers, editMessage, deleteMessage,
+    addReaction, removeReaction, markAsRead, sendTypingIndicator, searchMessages
   } = useChatStore();
 
   const [text, setText] = useState("");
@@ -41,9 +42,19 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestLang, setRequestLang] = useState("");
+  
+  // Phase 1 UI state
+  const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [selectedReactionMessage, setSelectedReactionMessage] = useState<string | null>(null);
+
+  const EMOJI_REACTIONS = ["👍", "❤️", "😂", "🔥", "😮", "😢", "🎉", "✨"];
 
   useEffect(() => {
     connectSocket();
@@ -82,6 +93,45 @@ export default function ChatPage() {
     if (!text.trim()) return;
     await sendMessage(text.trim());
     setText("");
+  };
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setText(e.target.value);
+    sendTypingIndicator();
+  };
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (query.trim()) {
+      const results = await searchMessages(query);
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const handleEditSave = async (messageId: string) => {
+    if (!editText.trim()) return;
+    await editMessage(messageId, editText);
+    setEditingMessageId(null);
+    setEditText("");
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (confirm("Delete this message?")) {
+      await deleteMessage(messageId);
+    }
+  };
+
+  const handleReactionClick = async (messageId: string, emoji: string) => {
+    const message = messages.find((m) => m._id === messageId);
+    const hasReaction = message?.reactions?.some((r: any) => r.userId === authUser?._id && r.emoji === emoji);
+    
+    if (hasReaction) {
+      await removeReaction(messageId, emoji);
+    } else {
+      await addReaction(messageId, emoji);
+    }
   };
 
   const handleAddFriend = async (userId: string) => {
@@ -265,6 +315,11 @@ export default function ChatPage() {
                   messages.map((message, idx) => {
                     const isMe = message.senderId._id === authUser?._id;
                     const showAvatar = isGroupChat && !isMe;
+                    const messageReadCount = message.readBy?.length || 0;
+                    const hasReactions = message.reactions && message.reactions.length > 0;
+                    const isEdited = message.isEdited;
+                    const isEditing = editingMessageId === message._id;
+                    
                     return (
                       <motion.div 
                         initial={{ opacity: 0, y: 10 }}
@@ -294,33 +349,223 @@ export default function ChatPage() {
                                 {message.senderId.name}
                               </span>
                             )}
-                            <div 
-                              className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm ${
-                                isMe 
-                                  ? "bg-purple-600 text-white rounded-br-sm" 
-                                  : "bg-[#27272a] text-zinc-200 rounded-bl-sm border border-white/5"
-                              }`}
-                            >
-                              {message.text}
+
+                            {/* Message bubble with edit/delete menu */}
+                            <div className="relative group/message">
+                              {isEditing ? (
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                    className="bg-[#27272a] text-white px-4 py-2.5 rounded-2xl text-sm border border-purple-500/50 focus:outline-none"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleEditSave(message._id)}
+                                    className="px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-500"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingMessageId(null);
+                                      setEditText("");
+                                    }}
+                                    className="px-3 py-2 bg-zinc-700 text-white rounded-xl text-xs font-semibold hover:bg-zinc-600"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div 
+                                    className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm relative ${
+                                      isMe 
+                                        ? "bg-purple-600 text-white rounded-br-sm" 
+                                        : "bg-[#27272a] text-zinc-200 rounded-bl-sm border border-white/5"
+                                    } group/bubble`}
+                                  >
+                                    {message.text}
+                                    {isEdited && <span className="text-xs opacity-70 ml-2">(edited)</span>}
+
+                                    {/* Action menu hover */}
+                                    {isMe && (
+                                      <div className="absolute -right-12 top-0 opacity-0 group-hover/bubble:opacity-100 transition-opacity flex gap-1">
+                                        <button
+                                          onClick={() => {
+                                            setEditingMessageId(message._id);
+                                            setEditText(message.text);
+                                          }}
+                                          className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center"
+                                          title="Edit"
+                                        >
+                                          <FiEdit3 className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteMessage(message._id)}
+                                          className="w-8 h-8 rounded-lg bg-red-600 hover:bg-red-500 text-white flex items-center justify-center"
+                                          title="Delete"
+                                        >
+                                          <FiTrash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    {/* Reaction picker hover */}
+                                    <div className="absolute -right-12 top-8 opacity-0 group-hover/bubble:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={() => setSelectedReactionMessage(selectedReactionMessage === message._id ? null : message._id)}
+                                        className="w-8 h-8 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white flex items-center justify-center"
+                                        title="React"
+                                      >
+                                        <FiSmile className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Emoji picker popup */}
+                                  <AnimatePresence>
+                                    {selectedReactionMessage === message._id && (
+                                      <motion.div
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        className={`absolute ${isMe ? "right-0 -translate-x-2" : "left-0 translate-x-2"} bottom-full mb-2 bg-[#27272a] border border-white/10 rounded-xl p-2 flex gap-1 shadow-xl`}
+                                      >
+                                        {EMOJI_REACTIONS.map((emoji) => (
+                                          <button
+                                            key={emoji}
+                                            onClick={() => {
+                                              handleReactionClick(message._id, emoji);
+                                              setSelectedReactionMessage(null);
+                                            }}
+                                            className="text-lg hover:scale-125 transition-transform cursor-pointer"
+                                            title={`React with ${emoji}`}
+                                          >
+                                            {emoji}
+                                          </button>
+                                        ))}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+
+                                  {/* Reactions display */}
+                                  {hasReactions && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      {message.reactions.map((reaction: any, i: number) => (
+                                        <button
+                                          key={i}
+                                          onClick={() => handleReactionClick(message._id, reaction.emoji)}
+                                          className={`px-2 py-1 rounded-lg text-xs flex items-center gap-1 transition-all ${
+                                            reaction.userId === authUser?._id
+                                              ? "bg-purple-600/30 border border-purple-500/50"
+                                              : "bg-white/10 border border-white/10 hover:bg-white/20"
+                                          }`}
+                                        >
+                                          <span>{reaction.emoji}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Read receipt & timestamp */}
+                                  <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? "justify-end" : "justify-start"} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                                    <span className="text-zinc-500">{format(new Date(message.createdAt), "h:mm a")}</span>
+                                    {isMe && !isGroupChat && messageReadCount > 0 && (
+                                      <span className="text-blue-400" title={`Read by ${messageReadCount}`}>
+                                        ✓✓
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              )}
                             </div>
-                            <span className="text-[10px] text-zinc-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {format(new Date(message.createdAt), "h:mm a")}
-                            </span>
                           </div>
                         </div>
                       </motion.div>
                     )
                   })
                 )}
+
+                {/* Typing indicator */}
+                {typingUsers.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-end gap-2 text-xs text-zinc-500"
+                  >
+                    <span>{typingUsers.length} user{typingUsers.length > 1 ? "s" : ""} typing</span>
+                    <div className="flex gap-1">
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 0.6, repeat: Infinity }} className="w-1 h-1 bg-zinc-500 rounded-full" />
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }} className="w-1 h-1 bg-zinc-500 rounded-full" />
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }} className="w-1 h-1 bg-zinc-500 rounded-full" />
+                    </div>
+                  </motion.div>
+                )}
+
                 <div ref={messagesEndRef} />
              </div>
 
-             <div className="p-4 bg-[#18181b]/50 backdrop-blur-md border-t border-white/5 pb-6">
+             <div className="p-4 bg-[#18181b]/50 backdrop-blur-md border-t border-white/5 pb-6 space-y-3">
+                {/* Search box */}
+                {showSearch && (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search messages..."
+                      value={searchQuery}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      className="w-full bg-[#27272a]/50 border border-white/10 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-purple-500/50 placeholder:text-zinc-500"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        setShowSearch(false);
+                        setSearchQuery("");
+                        setSearchResults([]);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                    >
+                      <FiX className="w-4 h-4" />
+                    </button>
+                    {searchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-[#27272a] border border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50">
+                        {searchResults.map((msg, i) => (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              const msgIdx = messages.findIndex((m) => m._id === msg._id);
+                              if (msgIdx !== -1) {
+                                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                              }
+                              setShowSearch(false);
+                            }}
+                            className="w-full px-4 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                          >
+                            <p className="font-medium truncate">{msg.senderId?.name}</p>
+                            <p className="text-zinc-500 truncate">{msg.text}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Message input */}
                 <form onSubmit={handleSend} className="flex items-center gap-3 w-full bg-[#27272a]/50 p-2 rounded-2xl border border-white/10 focus-within:border-purple-500/50 focus-within:ring-1 focus-within:ring-purple-500/50 transition-all">
+                  <button
+                    type="button"
+                    onClick={() => setShowSearch(!showSearch)}
+                    className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all"
+                    title="Search"
+                  >
+                    <FiSearch className="w-4 h-4" />
+                  </button>
                   <input
                     type="text"
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={handleTextChange}
                     placeholder="Message..."
                     className="flex-1 bg-transparent border-none text-white px-3 py-1 focus:outline-none text-sm placeholder:text-zinc-500"
                   />

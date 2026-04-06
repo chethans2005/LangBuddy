@@ -41,6 +41,50 @@ const UserSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    // Phase 2: Proficiency levels & Ratings
+    proficiencyLevels: {
+      nativeLanguage: {
+        type: String,
+        enum: ["native", "fluent", "advanced"],
+        default: "native",
+      },
+      learningLanguage: {
+        type: String,
+        enum: ["beginner", "intermediate", "advanced", "fluent"],
+        default: "beginner",
+      },
+    },
+    ratings: [
+      {
+        fromUserId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        score: {
+          type: Number,
+          min: 1,
+          max: 5,
+        },
+        comment: {
+          type: String,
+          maxlength: 300,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    avgRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    totalRatings: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

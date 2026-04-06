@@ -145,4 +145,132 @@ router.post("/request-language", protectRoute, async (req: AuthRequest, res) => 
   }
 });
 
+// Phase 2: User Profile endpoints
+
+// Get public user profile
+router.get("/:id", async (req: AuthRequest, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .populate("friends", "name avatar nativeLanguage learningLanguage")
+      .select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update proficiency levels
+router.put("/:id/profile", protectRoute, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    // Only allow users to update their own profile
+    if (id !== userId.toString()) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const { nativeLanguage, learningLanguage, bio, proficiencyLevels } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      {
+        ...(nativeLanguage && { nativeLanguage }),
+        ...(learningLanguage && { learningLanguage }),
+        ...(bio && { bio }),
+        ...(proficiencyLevels && { proficiencyLevels }),
+      },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json(updatedUser);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Add or update rating for a user
+router.post("/:id/ratings", protectRoute, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { score, comment } = req.body;
+    const fromUserId = req.user._id;
+
+    if (!score || score < 1 || score > 5) {
+      return res.status(400).json({ message: "Rating must be between 1 and 5" });
+    }
+
+    if (id === fromUserId.toString()) {
+      return res.status(400).json({ message: "Cannot rate yourself" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Remove existing rating from this user if any
+    const existingRatingIndex = user.ratings.findIndex(
+      (r: any) => r.fromUserId.toString() === fromUserId.toString()
+    );
+
+    if (existingRatingIndex !== -1) {
+      user.ratings[existingRatingIndex] = {
+        fromUserId,
+        score,
+        comment: comment || "",
+        createdAt: new Date(),
+      };
+    } else {
+      user.ratings.push({
+        fromUserId,
+        score,
+        comment: comment || "",
+        createdAt: new Date(),
+      });
+    }
+
+    // Recalculate average rating
+    const totalScore = user.ratings.reduce((sum: number, r: any) => sum + r.score, 0);
+    user.avgRating = Number((totalScore / user.ratings.length).toFixed(1));
+    user.totalRatings = user.ratings.length;
+
+    await user.save();
+    res.status(200).json({
+      message: "Rating saved",
+      avgRating: user.avgRating,
+      totalRatings: user.totalRatings,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get ratings for a user
+router.get("/:id/ratings", async (req: AuthRequest, res) => {
+  try {
+    const user = await User.findById(req.params.id).populate(
+      "ratings.fromUserId",
+      "name avatar"
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      avgRating: user.avgRating,
+      totalRatings: user.totalRatings,
+      ratings: user.ratings || [],
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;
