@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { axiosInstance } from "@/lib/axios";
+import { useNotificationStore } from "@/store/useNotificationStore";
 import { FiCheck, FiX, FiBellOff } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -9,6 +10,7 @@ import toast from "react-hot-toast";
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const fetchUnreadCount = useNotificationStore((s) => s.fetchCount);
 
   useEffect(() => {
     fetchNotifications();
@@ -24,6 +26,13 @@ export default function NotificationsPage() {
     try {
       const res = await axiosInstance.get("/notifications");
       setNotifications(res.data);
+      // mark all as read on view
+      try {
+        await axiosInstance.put("/notifications/read-all");
+        useNotificationStore.getState().reset();
+      } catch (e) {
+        // ignore
+      }
     } catch (error) {
       toast.error("Failed to load notifications");
     } finally {
@@ -36,8 +45,20 @@ export default function NotificationsPage() {
       await axiosInstance.put(`/notifications/${id}`, { action });
       toast.success(`Request ${action.toLowerCase()}ed`);
       setNotifications((prev) => prev.filter((n) => n._id !== id));
+      fetchUnreadCount();
     } catch (error) {
       toast.error("An error occurred");
+    }
+  };
+
+  const handleDismiss = async (id: string) => {
+    try {
+      await axiosInstance.delete(`/notifications/${id}`);
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+      fetchUnreadCount();
+      toast.success("Notification removed");
+    } catch (error) {
+      toast.error("Failed to remove notification");
     }
   };
 
@@ -88,8 +109,19 @@ export default function NotificationsPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white mb-1">
-                      {notification.sender?.name} <span className="text-zinc-400 font-normal text-sm">wants to connect</span>
+                      {notification.type === "FRIEND_REQUEST" ? (
+                        <>
+                          {notification.sender?.name} <span className="text-zinc-400 font-normal text-sm">wants to connect</span>
+                        </>
+                      ) : (
+                        <>
+                          {notification.sender?.name} <span className="text-zinc-400 font-normal text-sm">sent you a message</span>
+                        </>
+                      )}
                     </h3>
+                    {notification.type === "MESSAGE" && notification.content && (
+                      <p className="text-sm text-zinc-300 mb-1 line-clamp-2">{notification.content}</p>
+                    )}
                     <div className="flex flex-wrap gap-2">
                       <span className="text-xs text-zinc-500 font-medium">Native: <span className="text-purple-400">{notification.sender?.nativeLanguage}</span></span>
                       <span className="text-zinc-700 text-xs">•</span>
@@ -99,20 +131,32 @@ export default function NotificationsPage() {
                 </div>
 
                 <div className="flex items-center space-x-3 w-full sm:w-auto">
-                  <button
-                    onClick={() => handleAction(notification._id, "ACCEPT")}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl transition-all font-semibold shadow-lg shadow-emerald-500/20 active:scale-95"
-                  >
-                    <FiCheck className="w-5 h-5" />
-                    <span>Accept</span>
-                  </button>
-                  <button
-                    onClick={() => handleAction(notification._id, "DECLINE")}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 bg-[#27272a] hover:bg-red-500/20 text-zinc-300 hover:text-red-400 rounded-xl transition-all font-medium border border-transparent hover:border-red-500/30 active:scale-95"
-                  >
-                    <FiX className="w-5 h-5" />
-                    <span>Decline</span>
-                  </button>
+                  {notification.type === "FRIEND_REQUEST" ? (
+                    <>
+                      <button
+                        onClick={() => handleAction(notification._id, "ACCEPT")}
+                        className="flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl transition-all font-semibold shadow-lg shadow-emerald-500/20 active:scale-95"
+                      >
+                        <FiCheck className="w-5 h-5" />
+                        <span>Accept</span>
+                      </button>
+                      <button
+                        onClick={() => handleAction(notification._id, "DECLINE")}
+                        className="flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 bg-[#27272a] hover:bg-red-500/20 text-zinc-300 hover:text-red-400 rounded-xl transition-all font-medium border border-transparent hover:border-red-500/30 active:scale-95"
+                      >
+                        <FiX className="w-5 h-5" />
+                        <span>Decline</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handleDismiss(notification._id)}
+                      className="flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 bg-[#27272a] hover:bg-white/10 text-zinc-300 hover:text-white rounded-xl transition-all font-medium border border-transparent hover:border-white/20 active:scale-95"
+                    >
+                      <FiX className="w-5 h-5" />
+                      <span>Dismiss</span>
+                    </button>
+                  )}
                 </div>
               </motion.div>
             ))}

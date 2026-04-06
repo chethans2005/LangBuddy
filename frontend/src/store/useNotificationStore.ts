@@ -14,8 +14,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   unreadCount: 0,
   fetchCount: async () => {
     try {
-      const res = await axiosInstance.get("/notifications");
-      set({ unreadCount: Array.isArray(res.data) ? res.data.length : 0 });
+      const res = await axiosInstance.get("/notifications/count");
+      set({ unreadCount: typeof res.data?.count === "number" ? res.data.count : 0 });
     } catch (e) {
       toast.error("Failed to load notifications");
     }
@@ -24,7 +24,14 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   reset: () => set({ unreadCount: 0 }),
   subscribeToEvents: () => {
     if (typeof window === "undefined") return;
-    const handler = () => get().increment();
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail as any;
+      const type = detail?.type;
+      // increment only for persisted notification types
+      if (type === "FRIEND_REQUEST" || type === "MESSAGE") {
+        get().increment();
+      }
+    };
     window.addEventListener("notification:received", handler as EventListener);
     return () => window.removeEventListener("notification:received", handler as EventListener);
   },
