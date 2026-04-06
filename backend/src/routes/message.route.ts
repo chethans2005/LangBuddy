@@ -1,6 +1,7 @@
 // @ts-nocheck
 import express from "express";
 import Message from "../models/Message";
+import Notification from "../models/Notification";
 import { protectRoute, AuthRequest } from "../middleware/auth.middleware";
 import { getReceiverSocketId, io } from "../lib/socket";
 import { isAllowedGroup } from "../lib/groups";
@@ -43,6 +44,22 @@ router.post("/direct/:id", protectRoute, async (req: AuthRequest, res) => {
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
+
+    // create notification for direct message receiver
+    try {
+      const notif = new Notification({
+        sender: senderId,
+        recipient: receiverId,
+        type: "MESSAGE",
+        content: (text || "").slice(0, 200),
+      });
+      await notif.save();
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("newNotification", notif);
+      }
+    } catch (e) {
+      // ignore notification errors
     }
 
     res.status(201).json(newMessage);

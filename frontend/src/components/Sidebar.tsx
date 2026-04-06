@@ -8,6 +8,7 @@ import { FiHome, FiUsers, FiMessageSquare, FiBell, FiLogOut, FiSearch, FiEdit3, 
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useThemeStore } from "@/store/useThemeStore";
+import { useNotificationStore } from "@/store/useNotificationStore";
 
 const LANGUAGES = [
   "🇬🇧 English", "🇪🇸 Spanish", "🇫🇷 French", "🇩🇪 German", "🇮🇹 Italian", "🇵🇹 Portuguese", 
@@ -20,6 +21,9 @@ export default function Sidebar() {
   const router = useRouter();
   const { logout, authUser, updateProfile } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const fetchNotificationCount = useNotificationStore((s) => s.fetchCount);
+  const subscribeToNotifications = useNotificationStore((s) => s.subscribeToEvents);
   
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +50,12 @@ export default function Sidebar() {
       });
     }
   }, [authUser, isProfileOpen]);
+
+  useEffect(() => {
+    fetchNotificationCount?.();
+    const unsub = subscribeToNotifications?.();
+    return () => { if (typeof unsub === "function") unsub(); };
+  }, []);
 
   // Handle Search
   useEffect(() => {
@@ -160,7 +170,14 @@ export default function Sidebar() {
                 }`}
               >
                 <link.icon className={`w-5 h-5 ${isActive ? "text-purple-400" : "text-zinc-500"}`} />
-                <span>{link.name}</span>
+                <span className="flex items-center gap-2">
+                  <span>{link.name}</span>
+                  {link.name === "Notifications" && unreadCount > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-5 px-2 rounded-full text-xs font-semibold text-white bg-red-500">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </span>
               </Link>
             );
           })}
