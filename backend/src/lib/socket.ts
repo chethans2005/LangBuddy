@@ -70,6 +70,64 @@ io.on("connection", (socket) => {
     socket.leave(groupId);
   });
 
+  // Typing indicator events
+  socket.on("typing", (data: { conversationId: string; name: string; isGroup?: boolean }) => {
+    if (data.isGroup) {
+      socket.to(data.conversationId).emit("typing", { userId, name: data.name });
+    } else {
+      const receiverSocketId = getReceiverSocketId(data.conversationId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("typing", { userId, name: data.name });
+      }
+    }
+  });
+
+  socket.on("stopTyping", (data: { conversationId: string; isGroup?: boolean }) => {
+    if (data.isGroup) {
+      socket.to(data.conversationId).emit("stopTyping", { userId });
+    } else {
+      const receiverSocketId = getReceiverSocketId(data.conversationId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("stopTyping", { userId });
+      }
+    }
+  });
+
+  // Message read receipt
+  socket.on("messageRead", (data: { messageId: string; conversationId: string; isGroup?: boolean }) => {
+    if (data.isGroup) {
+      socket.to(data.conversationId).emit("messageRead", { messageId: data.messageId, userId });
+    } else {
+      const receiverSocketId = getReceiverSocketId(data.conversationId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("messageRead", { messageId: data.messageId, userId });
+      }
+    }
+  });
+
+  // Message reactions
+  socket.on("messageReaction", (data: { messageId: string; emoji: string; conversationId: string; isGroup?: boolean }) => {
+    if (data.isGroup) {
+      socket.to(data.conversationId).emit("messageReaction", { messageId: data.messageId, emoji: data.emoji, userId });
+    } else {
+      const receiverSocketId = getReceiverSocketId(data.conversationId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("messageReaction", { messageId: data.messageId, emoji: data.emoji, userId });
+      }
+    }
+  });
+
+  socket.on("removeReaction", (data: { messageId: string; emoji: string; conversationId: string; isGroup?: boolean }) => {
+    if (data.isGroup) {
+      socket.to(data.conversationId).emit("removeReaction", { messageId: data.messageId, emoji: data.emoji, userId });
+    } else {
+      const receiverSocketId = getReceiverSocketId(data.conversationId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("removeReaction", { messageId: data.messageId, emoji: data.emoji, userId });
+      }
+    }
+  });
+
   socket.on("disconnect", () => {
     if (userId) {
       delete userSocketMap[userId];

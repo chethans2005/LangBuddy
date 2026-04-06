@@ -14,12 +14,21 @@ interface ChatState {
   isGroupChat: boolean;
   isConnecting: boolean;
   isLoadingMessages: boolean;
+  typingUsers: string[];
+  typingTimeout: NodeJS.Timeout | null;
 
   connectSocket: () => void;
   disconnectSocket: () => void;
   setSelectedChat: (id: string | null, isGroup: boolean) => void;
   fetchMessages: (id: string, isGroup: boolean) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
+  editMessage: (id: string, newText: string) => Promise<void>;
+  deleteMessage: (id: string) => Promise<void>;
+  addReaction: (id: string, emoji: string) => Promise<void>;
+  removeReaction: (id: string, emoji: string) => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  sendTypingIndicator: () => void;
+  searchMessages: (query: string) => Promise<any[]>;
   subscribeToMessages: () => void;
   unsubscribeFromMessages: () => void;
 }
@@ -32,6 +41,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isGroupChat: false,
   isConnecting: false,
   isLoadingMessages: false,
+  typingUsers: [],
+  typingTimeout: null,
 
   connectSocket: () => {
     const { authUser } = useAuthStore.getState();
@@ -57,8 +68,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // listen for incoming notifications (friend requests, messages, etc.)
     socket.on("newNotification", (notification: any) => {
       try {
-        // small UX: show a toast and dispatch a DOM event so interested components can refresh
-        // avoid importing UI code here; use browser events and toast
         // @ts-ignore
         window.dispatchEvent(new CustomEvent("notification:received", { detail: notification }));
       } catch (e) {
@@ -68,7 +77,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     socket.on("friendRequestHandled", (payload: any) => {
       try {
         const { action, recipient } = payload || {};
-        // notify the user who sent the request that it's been handled
         // @ts-ignore
         window.dispatchEvent(new CustomEvent("notification:received", { detail: { type: "FRIEND_HANDLED", action, recipient } }));
       } catch (e) {
@@ -78,24 +86,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   disconnectSocket: () => {
-    const { socket, selectedChat, isGroupChat } = get();
+    const { socket, selectedChat, isGroupChat, typingTimeout } = get();
+    if (typingTimeout) clearTimeout(typingTimeout);
     if (socket?.connected) {
       if (isGroupChat && selectedChat) {
         socket.emit("leaveGroup", selectedChat);
       }
       socket.disconnect();
     }
-    set({ socket: null, onlineUsers: [] });
+    set({ socket: null, onlineUsers: [], typingTimeout: null });
   },
 
   setSelectedChat: (id, isGroup) => {
-    const { socket, selectedChat, isGroupChat } = get();
+    const { socket, selectedChat, isGroupChat, typingTimeout } = get();
+    
+    if (typingTimeout) clearTimeout(typingTimeout);
     
     if (isGroupChat && selectedChat && socket) {
       socket.emit("leaveGroup", selectedChat);
     }
 
-    set({ selectedChat: id, isGroupChat: isGroup });
+    set({ selectedChat: id, isGroupChat: isGroup, typingUsers: [], typingTimeout: null });
     
     if (id) {
       if (isGroup && socket) {
@@ -121,10 +132,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendMessage: async (text) => {
-    const { selectedChat, isGroupChat, messages } = get();
+    const { selectedChat, isGroupChat, messages, socket } = get();
     if (!selectedChat) return;
 
     try {
+      // Stop typing indicator
+      if (socket) {
+        socket.emit("stopTyping", { conversationId: selectedChat, isGroup: isGroupChat });
+      }
+      set({ typingTimeout: null });
+
       const endpoint = isGroupChat ? `/messages/group/${selectedChat}` : `/messages/direct/${selectedChat}`;
       const res = await axiosInstance.post(endpoint, { text });
       
@@ -136,11 +153,106 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  editMessage: async (id, newText) => {
+    try {
+      const res = await axiosInstance.put(`/messages/${id}`, { text: newText });
+      set({
+        messages: get().messages.map((m) => (m._id === id ? res.data : m)),
+      });
+      toast.success("Message edited");
+    } catch (error) {
+      toast.error("Failed to edit message");
+    }
+  },
+
+  deleteMessage: async (id) => {
+    try {
+      await axiosInstance.delete(`/messages/${id}`);
+      set({
+        messages: get().messages.filter((m) => m._id !== id),
+      });
+      toast.success("Message deleted");
+    } catch (error) {
+      toast.error("Failed to delete message");
+    }
+  },
+
+  addReaction: async (id, emoji) => {
+    const { socket, selectedChat, isGroupChat } = get();
+    try {
+      const res = await axiosInstance.post(`/messages/${id}/reactions/${emoji}`);
+      set({
+        messages: get().messages.map((m) => (m._id === id ? res.data : m)),
+      });
+      if (socket) {
+        socket.emit("messageReaction", { messageId: id, emoji, conversationId: selectedChat, isGroup: isGroupChat });
+      }
+    } catch (error) {
+      // silent fail
+    }
+  },
+
+  removeReaction: async (id, emoji) => {
+    const { socket, selectedChat, isGroupChat } = get();
+    try {
+      const res = await axiosInstance.delete(`/messages/${id}/reactions/${emoji}`);
+      set({
+        messages: get().messages.map((m) => (m._id === id ? res.data : m)),
+      });
+      if (socket) {
+        socket.emit("removeReaction", { messageId: id, emoji, conversationId: selectedChat, isGroup: isGroupChat });
+      }
+    } catch (error) {
+      // silent fail
+    }
+  },
+
+  markAsRead: async (id) => {
+    const { socket, selectedChat, isGroupChat } = get();
+    try {
+      await axiosInstance.put(`/messages/${id}/read`);
+      if (socket) {
+        socket.emit("messageRead", { messageId: id, conversationId: selectedChat, isGroup: isGroupChat });
+      }
+    } catch (error) {
+      // silent fail
+    }
+  },
+
+  sendTypingIndicator: () => {
+    const { socket, selectedChat, isGroupChat, typingTimeout } = get();
+    if (!socket || !selectedChat) return;
+
+    if (typingTimeout) clearTimeout(typingTimeout);
+
+    socket.emit("typing", { conversationId: selectedChat, name: "User", isGroup: isGroupChat });
+
+    const newTimeout = setTimeout(() => {
+      socket.emit("stopTyping", { conversationId: selectedChat, isGroup: isGroupChat });
+      set({ typingTimeout: null });
+    }, 3000);
+
+    set({ typingTimeout: newTimeout });
+  },
+
+  searchMessages: async (query) => {
+    const { selectedChat, isGroupChat } = get();
+    if (!selectedChat || !query.trim()) return [];
+
+    try {
+      const res = await axiosInstance.get(`/messages/search/${selectedChat}?q=${query}&isGroup=${isGroupChat}`);
+      return res.data;
+    } catch (error) {
+      toast.error("Search failed");
+      return [];
+    }
+  },
+
   subscribeToMessages: () => {
     const { socket } = get();
     if (!socket) return;
 
-     socket.on("newMessage", (newMessage: any) => {
+    socket.on("newMessage", (newMessage: any) => {
       const { selectedChat, isGroupChat } = get();
 
       if (isGroupChat && newMessage.groupId === selectedChat) {
@@ -148,18 +260,97 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
 
-      // handle direct messages: senderId may be populated object or id string
       const senderId = newMessage?.senderId?._id || newMessage?.senderId;
       if (!isGroupChat && senderId === selectedChat) {
         set({ messages: [...get().messages, newMessage] });
       }
-     });
+    });
+
+    // Typing indicators
+    socket.on("typing", (data: any) => {
+      set({
+        typingUsers: [...new Set([...get().typingUsers, data.userId])],
+      });
+    });
+
+    socket.on("stopTyping", (data: any) => {
+      set({
+        typingUsers: get().typingUsers.filter((id) => id !== data.userId),
+      });
+    });
+
+    // Message edits
+    socket.on("messageEdited", (data: any) => {
+      set({
+        messages: get().messages.map((m) => (m._id === data.messageId ? data.updatedMessage : m)),
+      });
+    });
+
+    // Message deletes
+    socket.on("messageDeleted", (data: any) => {
+      set({
+        messages: get().messages.filter((m) => m._id !== data.messageId),
+      });
+    });
+
+    // Reactions
+    socket.on("messageReaction", (data: any) => {
+      set({
+        messages: get().messages.map((m) => {
+          if (m._id === data.messageId) {
+            return {
+              ...m,
+              reactions: [...(m.reactions || []), { userId: data.userId, emoji: data.emoji }],
+            };
+          }
+          return m;
+        }),
+      });
+    });
+
+    socket.on("removeReaction", (data: any) => {
+      set({
+        messages: get().messages.map((m) => {
+          if (m._id === data.messageId) {
+            return {
+              ...m,
+              reactions: m.reactions.filter(
+                (r: any) => !(r.userId === data.userId && r.emoji === data.emoji)
+              ),
+            };
+          }
+          return m;
+        }),
+      });
+    });
+
+    // Read receipts
+    socket.on("messageRead", (data: any) => {
+      set({
+        messages: get().messages.map((m) => {
+          if (m._id === data.messageId) {
+            return {
+              ...m,
+              readBy: [...(m.readBy || []), { userId: data.userId }],
+            };
+          }
+          return m;
+        }),
+      });
+    });
   },
 
   unsubscribeFromMessages: () => {
     const { socket } = get();
     if (socket) {
       socket.off("newMessage");
+      socket.off("typing");
+      socket.off("stopTyping");
+      socket.off("messageEdited");
+      socket.off("messageDeleted");
+      socket.off("messageReaction");
+      socket.off("removeReaction");
+      socket.off("messageRead");
     }
   }
 }));
